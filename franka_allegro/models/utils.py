@@ -3,12 +3,14 @@ import os
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
+import torchvision.transforms.functional as TF
 
 from collections import OrderedDict
 from omegaconf import OmegaConf
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from .pretrained import resnet18, alexnet
+from .self_supervised_pretraining.dynamics import SmallResNet
 from franka_allegro.utils import crop_transform, VISION_IMAGE_MEANS, VISION_IMAGE_STDS
 
 # Taken from https://github.com/SridharPandian/Holo-Dex/blob/main/holodex/utils/models.py
@@ -47,7 +49,9 @@ def init_encoder_info(device, out_dir, encoder_type='tactile', view_num=1, model
         elif encoder_type =='image' and out_dir is None: # Load the pretrained encoder 
             encoder = resnet18(pretrained=True, out_dim=512).to(device) # These values are set
             cfg = OmegaConf.create({"encoder":{"out_dim":512}})
-        
+
+            # encoder = SmallResNet().to(device)
+            # cfg = OmegaConf.create({"encoder":{"out_dim":512}})
         else:
             cfg = OmegaConf.load(os.path.join(out_dir, '.hydra/config.yaml'))
 
@@ -59,6 +63,9 @@ def init_encoder_info(device, out_dir, encoder_type='tactile', view_num=1, model
                 model_path = os.path.join(out_dir, f'models/{model_type}_encoder_best.pt')
             else:
                 model_path = os.path.join(out_dir, f'models/{encoder_type}_encoder_best.pt')
+
+            # import ipdb 
+            # ipdb.set_trace()
             encoder = load_model(cfg, device, model_path, encoder_type)
         encoder.eval() 
         
@@ -73,6 +80,65 @@ def init_encoder_info(device, out_dir, encoder_type='tactile', view_num=1, model
                 T.ToTensor(),
                 T.Normalize(VISION_IMAGE_MEANS, VISION_IMAGE_STDS),
             ]) 
+
+#         # elif encoder_type == 'dynamics':
+#             transform= T.Compose([
+#             T.Resize((480, 640)),
+#             lambda x: TF.crop(x, 0, 0, 480, 480),
+#             T.Resize((224, 224)),
+#             T.ToTensor(),
+# ])
+        else:
+            transform = None # This is separately set for tactile
+
+        return cfg, encoder, transform
+
+def init_dynamics_encoder_info(device, out_dir, encoder_type='tactile', view_num=1, model_type='byol'): # encoder_type: either image or tactile
+        if encoder_type == 'tactile' and  out_dir is None:
+            encoder = alexnet(pretrained=True, out_dim=512, remove_last_layer=True).to(device)
+            cfg = OmegaConf.create({'encoder':{'out_dim':512}, 'tactile_image_size':224})
+        
+        elif encoder_type =='image' and out_dir is None: # Load the pretrained encoder 
+            encoder = resnet18(pretrained=True, out_dim=512).to(device) # These values are set
+            cfg = OmegaConf.create({"encoder":{"out_dim":512}})
+
+            # encoder = SmallResNet().to(device)
+            # cfg = OmegaConf.create({"encoder":{"out_dim":512}})
+        else:
+            cfg = OmegaConf.load(os.path.join(out_dir, '.hydra/config.yaml'))
+
+            if 'byol' in cfg.learner_type: # We assume that the model path is byol directly
+                model_path = os.path.join(out_dir, f'models/byol_encoder_best.pt')
+            elif cfg.learner_type == 'bc': # NOTE: Check these in the future lol
+                model_path = os.path.join(out_dir, f'models/bc_{encoder_type}_encoder_best.pt')
+            elif 'vicreg' in cfg.learner_type:
+                model_path = os.path.join(out_dir, f'models/{model_type}_encoder_best.pt')
+            elif 'dynamics' in cfg.learner_type:
+                model_path = os.path.join(out_dir, f'models/{encoder_type}_encoder_best.pt')
+            else:
+                model_path = os.path.join(out_dir, f'models/{encoder_type}_encoder_best.pt')
+            encoder = load_model(cfg, device, model_path, encoder_type)
+        encoder.eval() 
+        
+        if encoder_type == 'image':
+            # def viewed_crop_transform(image):
+            #     return crop_transform(image, camera_view=view_num)
+            
+            # transform = T.Compose([
+            #     T.Resize((480,640)),
+            #     T.Lambda(viewed_crop_transform),
+            #     T.Resize(480),
+            #     T.ToTensor(),
+            #     T.Normalize(VISION_IMAGE_MEANS, VISION_IMAGE_STDS),
+            # ]) 
+
+        # elif encoder_type == 'dynamics':
+            transform= T.Compose([
+            T.Resize((480, 640)),
+            lambda x: TF.crop(x, 0, 0, 480, 480),
+            T.Resize((224, 224)),
+            T.ToTensor(),
+])
         else:
             transform = None # This is separately set for tactile
 
@@ -93,11 +159,14 @@ def load_model(cfg, device, model_path, model_type=None):
         model = hydra.utils.instantiate(cfg.learner.gmm_layer)
     elif cfg.learner_type == 'temporal_ssl':
         if model_type == 'image':
+            print("Config encoder : {}".format(cfg.encoder.encoder))
             model = hydra.utils.instantiate(cfg.encoder.encoder)
         elif model_type == 'linear_layer':
             model = hydra.utils.instantiate(cfg.encoder.linear_layer)
     else:
+        print("Entering the else condition!")
         model = hydra.utils.instantiate(cfg.encoder)  
+        print("Model instantiated!", model)
 
     state_dict = torch.load(model_path) # All the parameters by default gets installed to cuda 0
     
@@ -109,6 +178,9 @@ def load_model(cfg, device, model_path, model_type=None):
         state_dict = modify_byol_state_dict(state_dict)
 
     # Load the new state dict to the model 
+    # import ipdb
+    # ipdb.set_trace()
+    print("State dict keys : {}".format(state_dict.keys()))
     model.load_state_dict(state_dict)
     model = model.to(device)
 

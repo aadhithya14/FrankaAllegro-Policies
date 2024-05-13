@@ -15,7 +15,7 @@ class Deploy:
             'depth_idxs': [0]
         }
         self.deploy_api = DeployAPI(
-            host_address = '172.24.71.240',
+            host_address = '172.24.71.206',
             required_data = required_data
         )
         self.cfg = cfg

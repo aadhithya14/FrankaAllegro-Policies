@@ -73,7 +73,7 @@ class Deployer(ABC):
             for param in self.tactile_encoder.parameters():
                 param.requires_grad = False
 
-    def _get_curr_image(self, host='172.24.71.240', port=10005):
+    def _get_curr_image(self, host='172.24.71.206', port=10008):
         image_subscriber = ZMQCameraSubscriber( # TODO: Change this such that it will create a subscriber only once
             host = host,
             port = port + self.view_num,

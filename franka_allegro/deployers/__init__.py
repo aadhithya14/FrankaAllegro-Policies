@@ -4,3 +4,4 @@ from .bet import BET
 from .ibc import IBC
 from .vinn import VINN 
 from .openloop import OpenLoop
+from .vinn_dynamics import VINNDynamics

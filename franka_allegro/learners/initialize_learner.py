@@ -10,7 +10,9 @@ from .bc_gmm import BCGMM
 from .mocov3 import MOCOLearner
 from .simclr import SIMCLRLearner
 from .temporal_ssl import TemporalSSLLearner
+from .dynamics import DynamicsLearner
 
+from franka_allegro.models.self_supervised_pretraining.dynamics import resnet18jeff
 from franka_allegro.utils import *
 from franka_allegro.models import  *
 
@@ -46,6 +48,13 @@ def init_learner(cfg, device, rank=0):
         )
     elif cfg.learner_type == 'temporal_ssl':
         return init_temporal_learner(
+            cfg,
+            device,
+            rank
+        )
+
+    elif cfg.learner_type == 'dynamics':
+        return init_dynamics_learner(
             cfg,
             device,
             rank
@@ -250,6 +259,8 @@ def init_tactile_byol(cfg, device, rank, aug_stat_multiplier=1, byol_in_channels
 
     return learner
 
+
+
 def init_image_byol(cfg, device, rank):
     # Start the encoder
     encoder = hydra.utils.instantiate(cfg.encoder).to(device)
@@ -369,6 +380,36 @@ def init_bc_gmm(cfg, device, rank):
         representation_type = cfg.learner.representation_type,
         freeze_encoders = cfg.learner.freeze_encoders
     )
+    learner.to(device)
+
+    return learner
+
+def init_dynamics_learner(cfg,device,rank):
+    encoder = hydra.utils.instantiate(cfg.encoder).to(device)
+
+    dynamics_net = resnet18jeff(
+    ).to(device)
+
+    augment_fn = get_vision_augmentations(
+        img_means = VISION_IMAGE_MEANS,
+        img_stds = VISION_IMAGE_STDS
+    )
+
+     # Initialize the dynamics learning wrapper
+    if cfg.distributed:
+        encoder = DDP(encoder, device_ids=[rank], output_device=rank, broadcast_buffers=False)
+    
+    # Initialize the optimizer 
+    optimizer = hydra.utils.instantiate(cfg.optimizer,
+                                        params = dynamics_net.parameters())
+    
+    
+    # Initialize the agent
+    learner = DynamicsLearner(
+        dynamics_learner = dynamics_net,
+        optimizer = optimizer
+    )
+
     learner.to(device)
 
     return learner

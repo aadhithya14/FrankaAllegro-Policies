@@ -22,7 +22,7 @@ from franka_allegro.utils import *
 from .deployer import Deployer
 from .utils.nn_buffer import NearestNeighborBuffer
 
-class VINN(Deployer):
+class VINNDynamics(Deployer):
     def __init__(
         self,
         data_path,
@@ -225,6 +225,7 @@ class VINN(Deployer):
             curr_image = self.inv_image_transform(image).numpy().transpose(1,2,0)
             curr_image_cv2 = cv2.cvtColor(curr_image*255, cv2.COLOR_RGB2BGR)
 
+
             if 'tactile' in self.data_reprs:
                 tactile_values = state_dict['tactile']
                 tactile_image = self._get_tactile_image_for_visualization(state_dict['tactile'])
@@ -320,7 +321,9 @@ class VINN(Deployer):
         # Get the current image 
         if image is None:
             image = self._get_curr_image()
-        curr_image = self.inv_image_transform(image).numpy().transpose(1,2,0)
+        
+        #curr_image = self.inv_image_transform(image).numpy().transpose(1,2,0)
+        curr_image = image.numpy().transpose(1,2,0)
         curr_image_cv2 = cv2.cvtColor(curr_image*255, cv2.COLOR_RGB2BGR)
         curr_tactile_image = self.tactile_img.get_tactile_image_for_visualization(curr_tactile_values) 
 
@@ -414,7 +417,7 @@ class VINN(Deployer):
         if visualize: # TODO: This could give error - ignore this for now
             tactile_image = self.tactile_img.get_tactile_image_for_visualization(tactile_value) 
             kinova_cart_pos = arm_state[:3] # Only position is used
-            vis_image = self.inv_image_transform(image).numpy().transpose(1,2,0)
+            vis_image = image.numpy().transpose(1,2,0)
             vis_image = cv2.cvtColor(vis_image*255, cv2.COLOR_RGB2BGR)
 
             visualization_data = dict(
@@ -427,3 +430,34 @@ class VINN(Deployer):
             return visualization_data
         else:
             return data_dict
+        
+    def _set_encoders(self, image_out_dir=None, image_model_type=None, tactile_out_dir=None, tactile_model_type=None):
+        if 'image' in self.data_reprs:
+            _, self.image_encoder, self.image_transform  = init_dynamics_encoder_info(self.device, image_out_dir, 'image', view_num=self.view_num, model_type=image_model_type)
+            self.image_encoder.eval()
+            for param in self.image_encoder.parameters():
+                param.requires_grad = False 
+
+            # self.inv_image_transform = get_inverse_dynamics_image_norm()
+        # print("Image encoder", self.image_encoder)
+
+        if 'tactile' in self.data_reprs:
+            tactile_cfg, self.tactile_encoder, _ = init_encoder_info(self.device, tactile_out_dir, 'tactile', view_num=self.view_num, model_type=tactile_model_type)
+            self.tactile_img = TactileImageCurved( # This will be used for visualization if needed
+                tactile_image_size = tactile_cfg.tactile_image_size, 
+                shuffle_type = None
+            )
+            tactile_repr_dim = tactile_cfg.encoder.tactile_encoder.out_dim if tactile_model_type == 'bc' else tactile_cfg.encoder.out_dim
+            
+            self.tactile_repr = TactileCurvedRepresentation( # This will be used when calculating the reward - not getting the observations
+                encoder_out_dim = tactile_repr_dim,
+                tactile_encoder = self.tactile_encoder,
+                tactile_image = self.tactile_img,
+                representation_type = 'tdex',
+                device = self.device
+            )
+
+            self.tactile_encoder.eval()
+            
+            for param in self.tactile_encoder.parameters():
+                param.requires_grad = False

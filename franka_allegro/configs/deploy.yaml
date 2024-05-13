@@ -1,10 +1,10 @@
 defaults:
-  - deployer: openloop # This fails almost anywhere! 
+  - deployer: vinn_dynamics # This fails almost anywhere! 
 
-visualize: false
+visualize: true
 loop: true
 frequency: 4
-deployment_dump_dir: null
-demo_to_run: 1
-data_representations: ['image', 'allegro', 'franka']
-data_path: /data/sponge_picking_final_3/ #/data/infra_test_dataset/R0B1B_test
+deployment_dump_dir: dump_random_no_ema_no_dropout_no_lrsched
+demo_to_run: 221
+data_representations: ['image', 'allegro', 'franka', 'tactile']
+data_path: /data/sponge_picking_final/ #/data/infra_test_dataset/R0B1B_test

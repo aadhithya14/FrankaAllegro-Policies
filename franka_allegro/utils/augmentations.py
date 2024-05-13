@@ -123,6 +123,17 @@ def get_inverse_image_norm():
 
     return inv_normalization_transform
 
+def get_inverse_dynamics_image_norm():
+    np_means = np.asarray(VISION_IMAGE_MEANS)
+    np_stds = np.asarray(VISION_IMAGE_STDS)
+
+    inv_normalization_transform = T.Compose([
+        T.Normalize(mean = [0,0,0], std = 1 / np_stds ), 
+        T.Normalize(mean = -np_means, std = [1,1,1])
+    ])
+
+    return inv_normalization_transform
+
 # Tactile transforms used
 def tactile_scale_transform(image):
     image = (image - TACTILE_PLAY_DATA_CLAMP_MIN) / (TACTILE_PLAY_DATA_CLAMP_MAX - TACTILE_PLAY_DATA_CLAMP_MIN)
