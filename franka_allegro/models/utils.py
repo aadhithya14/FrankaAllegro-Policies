@@ -12,6 +12,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from .pretrained import resnet18, alexnet
 from .self_supervised_pretraining.dynamics import SmallResNet
 from franka_allegro.utils import crop_transform, VISION_IMAGE_MEANS, VISION_IMAGE_STDS
+from r3m import load_r3m
 
 # Taken from https://github.com/SridharPandian/Holo-Dex/blob/main/holodex/utils/models.py
 def create_fc(input_dim, output_dim, hidden_dims, use_batchnorm=False, dropout=None, is_moco=False):
@@ -109,16 +110,32 @@ def init_dynamics_encoder_info(device, out_dir, encoder_type='tactile', view_num
 
             if 'byol' in cfg.learner_type: # We assume that the model path is byol directly
                 model_path = os.path.join(out_dir, f'models/byol_encoder_best.pt')
+                encoder = load_model(cfg, device, model_path, encoder_type)
+                encoder.eval() 
             elif cfg.learner_type == 'bc': # NOTE: Check these in the future lol
                 model_path = os.path.join(out_dir, f'models/bc_{encoder_type}_encoder_best.pt')
+                encoder = load_model(cfg, device, model_path, encoder_type)
+                encoder.eval() 
             elif 'vicreg' in cfg.learner_type:
                 model_path = os.path.join(out_dir, f'models/{model_type}_encoder_best.pt')
+                encoder = load_model(cfg, device, model_path, encoder_type)
+                encoder.eval() 
             elif 'dynamics' in cfg.learner_type:
+               
                 model_path = os.path.join(out_dir, f'models/{encoder_type}_encoder_best.pt')
+                encoder = load_model(cfg, device, model_path, encoder_type)
+                encoder.eval() 
+            elif 'r3m' in cfg.learner_type:
+                print("learner type : {}".format(cfg.learner_type))
+                encoder = load_r3m("resnet18") # resnet18, resnet34
+                encoder.eval() 
+                encoder.to(device)
             else:
                 model_path = os.path.join(out_dir, f'models/{encoder_type}_encoder_best.pt')
-            encoder = load_model(cfg, device, model_path, encoder_type)
-        encoder.eval() 
+                encoder = load_model(cfg, device, model_path, encoder_type)
+                encoder.eval() 
+            
+        
         
         if encoder_type == 'image':
             # def viewed_crop_transform(image):
@@ -131,6 +148,8 @@ def init_dynamics_encoder_info(device, out_dir, encoder_type='tactile', view_num
             #     T.ToTensor(),
             #     T.Normalize(VISION_IMAGE_MEANS, VISION_IMAGE_STDS),
             # ]) 
+
+            print("Encoder type : {}".format(encoder_type))
 
         # elif encoder_type == 'dynamics':
             transform= T.Compose([

@@ -1,10 +1,10 @@
 defaults:
-  - deployer: vinn_dynamics # This fails almost anywhere! 
+  - deployer: vinn # This fails almost anywhere! 
 
-visualize: true
+visualize: false
 loop: true
 frequency: 4
-deployment_dump_dir: dump_random_no_ema_no_dropout_no_lrsched
-demo_to_run: 221
-data_representations: ['image', 'allegro', 'franka', 'tactile']
-data_path: /data/sponge_picking_final/ #/data/infra_test_dataset/R0B1B_test
+deployment_dump_dir: dump_multitask_hand_tea_moco_1000_state_dict_data_clean_unprocessed_demo_as_all
+demo_to_run: [2]
+data_representations: ['image','allegro', 'franka']
+data_path: /data/sponge_picking_working/ #/data/infra_test_dataset/R0B1B_test
