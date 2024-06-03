@@ -40,6 +40,10 @@ class Preprocessor:
             if 'image' in self.modules:
                 self.modules['image'].dump_images()
 
+            if 'tactile_dynamo' in self.modules:
+                self.modules['tactile_dynamo'].dump_tactile_info_to_images()
+
+
     def _reset_indices(self): 
         for module in self.modules.values():
             module.reset_current_id() 

@@ -46,7 +46,7 @@ def load_human_data(roots, demos_to_use=[], duration=120):
     return data
 
 # Method to load all the data from given roots and return arrays for it
-def load_data(roots, demos_to_use=[], duration=120, representations=['image','tactile','allegro','franka']): # If the total length is equal to 2 hrs - it means we want the whole data
+def load_data(roots, demos_to_use=[], duration=120, representations=['image','allegro','franka']): # If the total length is equal to 2 hrs - it means we want the whole data
     roots = sorted(roots)
 
     arm_indices = []

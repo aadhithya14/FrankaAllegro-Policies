@@ -120,6 +120,7 @@ class VINN(Deployer):
                 new_repr = repr_data['robot_states'][repr_type] # These could be received directly from the robot states
             elif repr_type == 'tactile':
                 new_repr = self.tactile_repr.get(repr_data['tactile_value'])
+                print('Tactile Representation: {}'.format(new_repr))
             elif repr_type == 'image':
                 new_repr = self.image_encoder(repr_data['image'].unsqueeze(dim=0).to(self.device)) # Add a dimension to the first axis so that it could be considered as a batch
                 new_repr = new_repr.detach().cpu().numpy().squeeze()
@@ -131,6 +132,7 @@ class VINN(Deployer):
                 curr_repr = new_repr 
             else: 
                 curr_repr = np.concatenate([curr_repr, new_repr], axis=0)
+                # print("Current Representation", curr_repr)
                 
         return curr_repr
     
